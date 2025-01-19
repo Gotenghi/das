@@ -20,31 +20,6 @@ logger = logging.getLogger(__name__)
 YOUTUBE_API_KEY = "AIzaSyBv7e73O-Z8BZiuT_9eAfFE3G_tTaAxvqg"  # 실제 API 키로 교체
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
-# 캐시 관리를 위한 클래스 추가
-class CacheManager:
-    def __init__(self):
-        self.cache = {}
-        self.CACHE_DURATION = {
-            'video_info': 86400,     # 비디오 정보: 24시간
-            'comments': 3600,        # 댓글: 1시간
-            'trending': 3600,        # 인기 동영상: 1시간
-            'channel': 3600          # 채널 동영상: 1시간
-        }
-    
-    def get(self, key, cache_type):
-        if key in self.cache:
-            data, timestamp = self.cache[key]
-            age = (datetime.now() - timestamp).total_seconds()
-            if age < self.CACHE_DURATION[cache_type]:
-                return data
-        return None
-    
-    def set(self, key, data, cache_type):
-        self.cache[key] = (data, datetime.now())
-
-# 전역 캐시 매니저 인스턴스 생성
-cache_manager = CacheManager()
-
 def parse_duration(duration):
     """YouTube API의 duration 문자열을 초 단위로 변환"""
     match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration)
@@ -57,17 +32,10 @@ def parse_duration(duration):
     
     return hours * 3600 + minutes * 60 + seconds
 
+@st.cache_data(ttl=86400)  # 24시간 캐시
 def get_trending_videos():
-    """인기 급상승 동영상 가져오기 (캐시 적용)"""
+    """인기 급상승 동영상 가져오기"""
     try:
-        cache_key = 'trending_videos'
-        
-        # 캐시 확인
-        cached_data = cache_manager.get(cache_key, 'trending')
-        if cached_data is not None:
-            return cached_data
-        
-        # API 호출 시 필요한 필드만 지정
         request = youtube.videos().list(
             part="snippet,statistics",
             chart="mostPopular",
@@ -90,116 +58,79 @@ def get_trending_videos():
             }
             trending_videos.append(video_data)
         
-        # 결과 캐싱
-        cache_manager.set(cache_key, trending_videos, 'trending')
         return trending_videos
         
     except Exception as e:
         logger.error(f"인기 동영상 가져오기 실패: {str(e)}")
         return []
 
-def get_woosoo_videos():
-    """웃소 채널의 최근 동영상 가져오기 (숏폼 제외)"""
-    try:
-        if 'woosoo_cache' in st.session_state and 'woosoo_time' in st.session_state:
-            if (datetime.now() - st.session_state.woosoo_time).total_seconds() < 86400:
-                return st.session_state.woosoo_cache
-        
-        try:
-            channel_id = "UCmzMtXrJgfCqA0rfhz8_P4A"
-            
-            # 채널의 업로드된 동영상 목록 가져오기
-            request = youtube.search().list(
-                part="snippet",
-                channelId=channel_id,
-                order="date",
-                maxResults=15,  # 더 많이 가져와서 필터링 (숏폼이 많을 수 있으므로)
-                type="video"
-            )
-            response = request.execute()
-            
-            # 비디오 ID 목록 추출
-            video_ids = [item['id']['videoId'] for item in response['items']]
-            
-            # 비디오 상세 정보 가져오기
-            videos_request = youtube.videos().list(
-                part="snippet,statistics,contentDetails",
-                id=','.join(video_ids)
-            )
-            videos_response = videos_request.execute()
-            
-            woosoo_videos = []
-            for item in videos_response['items']:
-                # 동영상 길이 파싱
-                duration = item['contentDetails']['duration']
-                duration_seconds = parse_duration(duration)
-                
-                # 61초 이상인 영상만 포함 (숏폼 제외)
-                if duration_seconds > 61:
-                    video_data = {
-                        'id': item['id'],
-                        'title': item['snippet']['title'],
-                        'thumbnail': item['snippet']['thumbnails']['high']['url'],
-                        'url': f"https://www.youtube.com/watch?v={item['id']}",
-                        'viewCount': int(item['statistics'].get('viewCount', 0)),
-                        'commentCount': int(item['statistics'].get('commentCount', 0))
-                    }
-                    woosoo_videos.append(video_data)
-            
-            # 최근 4개만 선택
-            woosoo_videos = woosoo_videos[:4]
-            
-            # 캐시 저장
-            st.session_state.woosoo_cache = woosoo_videos
-            st.session_state.woosoo_time = datetime.now()
-            
-            return woosoo_videos
-            
-        except Exception as api_error:
-            logger.warning(f"웃소 채널 동영상 가져오기 실패: {str(api_error)}")
-            return []
-            
-    except Exception as e:
-        logger.error(f"웃소 채널 동영상 가져오기 실패: {str(e)}")
-        return []
-
+@st.cache_data(ttl=86400)  # 24시간 캐시
 def get_video_info(url):
-    """YouTube 영상 정보를 가져오는 함수 (캐시 적용)"""
+    """YouTube 영상 정보를 가져오는 함수"""
     try:
         video_id = url.split('watch?v=')[1].split('&')[0]
-        cache_key = f'video_info_{video_id}'
         
-        # 캐시 확인
-        cached_data = cache_manager.get(cache_key, 'video_info')
-        if cached_data:
-            return cached_data
-        
-        # API 호출 시 필요한 필드만 지정
         video_response = youtube.videos().list(
             part='snippet,statistics',
             id=video_id,
             fields='items(snippet(title,channelTitle),statistics(viewCount,likeCount,commentCount))'
         ).execute()
         
-        # 결과 캐싱
-        cache_manager.set(cache_key, video_response, 'video_info')
         return video_response
         
     except Exception as e:
         logger.error(f"영상 정보 가져오기 실패: {str(e)}")
         return None
 
-def get_comments(video_id):
-    """YouTube 비디오의 댓글을 가져오는 함수 (캐시 적용)"""
+@st.cache_data(ttl=3600)  # 1시간 캐시
+def get_woosoo_videos():
+    """웃소 채널의 최근 동영상 가져오기 (숏폼 제외)"""
     try:
-        cache_key = f'comments_{video_id}'
+        channel_id = "UCmzMtXrJgfCqA0rfhz8_P4A"
         
-        # 캐시 확인
-        cached_data = cache_manager.get(cache_key, 'comments')
-        if cached_data is not None:
-            return cached_data
+        request = youtube.search().list(
+            part="snippet",
+            channelId=channel_id,
+            order="date",
+            maxResults=15,
+            type="video"
+        )
+        response = request.execute()
         
-        # API 호출 시 필요한 필드만 지정
+        video_ids = [item['id']['videoId'] for item in response['items']]
+        
+        videos_request = youtube.videos().list(
+            part="snippet,statistics,contentDetails",
+            id=','.join(video_ids)
+        )
+        videos_response = videos_request.execute()
+        
+        woosoo_videos = []
+        for item in videos_response['items']:
+            duration = item['contentDetails']['duration']
+            duration_seconds = parse_duration(duration)
+            
+            if duration_seconds > 61:
+                video_data = {
+                    'id': item['id'],
+                    'title': item['snippet']['title'],
+                    'thumbnail': item['snippet']['thumbnails']['high']['url'],
+                    'url': f"https://www.youtube.com/watch?v={item['id']}",
+                    'viewCount': int(item['statistics'].get('viewCount', 0)),
+                    'commentCount': int(item['statistics'].get('commentCount', 0))
+                }
+                woosoo_videos.append(video_data)
+        
+        return woosoo_videos[:4]
+            
+    except Exception as e:
+        logger.error(f"웃소 채널 동영상 가져오기 실패: {str(e)}")
+        return []
+
+@st.cache_data(ttl=3600)  # 1시간 캐시
+def get_comments(video_id):
+    """YouTube 비디오의 댓글을 가져오는 함수"""
+    try:
         request = youtube.commentThreads().list(
             part="snippet",
             videoId=video_id,
@@ -223,11 +154,7 @@ def get_comments(video_id):
         except Exception as api_error:
             logger.warning(f"API를 통한 댓글 가져오기 실패: {str(api_error)}")
         
-        comments_df = pd.DataFrame(comments_list)
-        
-        # 결과 캐싱
-        cache_manager.set(cache_key, comments_df, 'comments')
-        return comments_df
+        return pd.DataFrame(comments_list)
         
     except Exception as e:
         logger.error(f"댓글 가져오기 실패: {str(e)}")
