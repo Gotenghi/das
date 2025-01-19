@@ -11,14 +11,23 @@ import traceback
 import ssl
 import certifi
 import os
+import openai
+from dotenv import load_dotenv
 
 # 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# 환경 변수 로드
+load_dotenv()
+
 # YouTube API 키 설정
-YOUTUBE_API_KEY = "AIzaSyBv7e73O-Z8BZiuT_9eAfFE3G_tTaAxvqg"  # 실제 API 키로 교체
+YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+
+# OpenAI API 키 설정
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+openai.api_key = OPENAI_API_KEY
 
 def parse_duration(duration):
     """YouTube API의 duration 문자열을 초 단위로 변환"""
@@ -193,14 +202,14 @@ def seconds_to_timestamp(seconds):
 
 def aggregate_timeline_comments(df):
     """타임스탬프별 댓글을 집계하는 함수"""
-    # 비슷한 시간대(5초 이내)의 댓글을 그룹화
-    timeline_data = defaultdict(lambda: {'comments': [], 'total_likes': 0, 'representative_time': 0})
-    
     # 타임스탬프가 있는 댓글만 필터링
     timestamp_comments = df[df['timestamp'].notna()].copy()
     
     if len(timestamp_comments) == 0:
         return {}
+    
+    # 비슷한 시간대(5초 이내)의 댓글을 그룹화
+    timeline_data = defaultdict(lambda: {'comments': [], 'total_likes': 0, 'representative_time': 0})
     
     # 타임스탬프로 정렬
     timestamp_comments = timestamp_comments.sort_values('timestamp')
@@ -216,6 +225,12 @@ def aggregate_timeline_comments(df):
         timeline_data[current_group]['comments'].append(row.to_dict())
         timeline_data[current_group]['total_likes'] += row['likeCount']
         timeline_data[current_group]['representative_time'] = current_group
+        
+        # 각 그룹 내에서 댓글을 좋아요 순으로 정렬
+        timeline_data[current_group]['comments'].sort(
+            key=lambda x: x['likeCount'], 
+            reverse=True
+        )
     
     return timeline_data
 
@@ -286,6 +301,58 @@ def generate_share_buttons(url, timestamp):
             <span>트위터 공유</span>
         </a>
     """
+
+@st.cache_data(ttl=86400)  # 24시간 캐시
+def generate_short_form_title(timeline_data):
+    """각 타임라인 그룹별로 숏폼 제목 생성"""
+    try:
+        # 좋아요 순으로 상위 3개 그룹 선택
+        top_moments = sorted(
+            timeline_data.items(),
+            key=lambda x: x[1]['total_likes'],
+            reverse=True
+        )[:3]
+        
+        titles = []
+        for time, data in top_moments:
+            # 해당 시간대의 모든 댓글 수집
+            comments = [comment['text'] for comment in data['comments']]
+            timestamp = seconds_to_timestamp(time)
+            
+            try:
+                client = openai.OpenAI(api_key=OPENAI_API_KEY)
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": """당신은 YouTube 숏폼 콘텐츠의 제목을 생성하는 전문가입니다.
+                         특히 '웃소' 채널의 특성을 잘 이해하고 있습니다:
+                         - 웃소는 다양한 콘텐츠(상황극, 게임, 먹방, 브이로그)를 통해 멤버 간의 유머와 개성을 보여주는 코미디 유튜브 채널입니다.
+                         - 구독자들은 웃소 멤버들의 티키타카(재치 있는 대화)와 독특한 캐릭터성을 좋아합니다.
+                         - 멤버들: 해리, 태훈, 성희, 고탱, 우디, 디투, 소정 등
+                         또한, 한국의 밈을 잘 이해하고 있고, 무심한 듯한 유머를 이해합니다.                   
+                         """},
+                        {"role": "user", "content": f"다음은 영상의 {timestamp} 부근에서 나온 시청자 댓글들입니다. "
+                         f"이 댓글들 중 간결하고 임팩트 있는 댓글을 하나 뽑아 제목으로 활용해주세요. ex: 20:01 키노피오가되. > 키노피오가 되. \n\n{'\n'.join(comments)}"}
+                    ],
+                    temperature=0.7,
+                    max_tokens=100
+                )
+                
+                title = response.choices[0].message.content
+                # 줄바꿈 문자를 공백으로 대체하여 한 줄로 만듦
+                title = title.strip().replace('\n', ' ')
+                titles.append(f"🎬 {timestamp} - {title}")
+                
+            except Exception as api_error:
+                logger.error(f"OpenAI API 호출 실패: {str(api_error)}\n{traceback.format_exc()}")
+                continue
+        
+        # 각 제목 사이에 한 번의 줄바꿈만 추가
+        return "\n".join(titles) if titles else None
+        
+    except Exception as e:
+        logger.error(f"제목 생성 실패: {str(e)}\n{traceback.format_exc()}")
+        return None
 
 def main():
     # 페이지 상태 관리
@@ -376,7 +443,7 @@ def show_home_page():
             color: white;
         }
 
-        /* 버튼 스타일링 */
+        /* 버튼 스타일링 수정 */
         .stButton > button {
             background-color: #FF4B4B;
             color: white;
@@ -384,61 +451,15 @@ def show_home_page():
             padding: 0.5rem 2rem;
             border-radius: 8px;
             font-weight: bold;
+            transition: all 0.3s ease;
         }
 
         .stButton > button:hover {
-            background-color: #FF3333;
+            background-color: #FF2525;  /* 더 진한 빨간색 */
             border: none;
-        }
-
-        /* 비디오 카드 스타일 유지 */
-        .video-card {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            overflow: hidden;
-            transition: all 0.3s ease;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .video-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        /* 섹션 헤더 */
-        .section-header {
-            margin: 3rem 0 2rem;
-        }
-
-        .section-title {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        /* 링크 아이콘 제거 */
-        .css-10trblm > a,
-        .css-10trblm > svg,
-        .element-container .css-10trblm svg,
-        .stMarkdown svg {
-            display: none !important;
-        }
-        
-        /* 링크 스타일 제거 */
-        .css-10trblm {
-            text-decoration: none !important;
-            pointer-events: none !important;
-        }
-        
-        /* 호버 효과 제거 */
-        .css-10trblm:hover {
-            text-decoration: none !important;
-            color: inherit !important;
+            color: white !important;    /* 호버 시 텍스트 색상 강제 지정 */
+            transform: translateY(-2px); /* 살짝 위로 떠오르는 효과 */
+            box-shadow: 0 4px 12px rgba(255, 75, 75, 0.3); /* 그림자 효과 */
         }
         </style>
     """, unsafe_allow_html=True)
@@ -459,19 +480,22 @@ def show_home_page():
         </div>
     """, unsafe_allow_html=True)
     
-    # URL 입력
-    url = st.text_input("YouTube URL을 입력하세요", key="url_input")
+    # URL 입력 (엔터키 지원)
+    url = st.text_input("YouTube URL을 입력하세요", key="url_input", on_change=handle_enter)
     
-    if st.button("댓글 보러가기"):
+    if st.button("댓글 보러가기") or st.session_state.get('enter_pressed', False):
         if url:
             st.session_state.video_url = url
             st.session_state.page = 'video'
+            # 엔터 상태 초기화
+            st.session_state.enter_pressed = False
             st.rerun()
         else:
             st.error("URL을 입력해주세요")
-    
-    # 인기 동영상 섹션
-    show_trending_videos()
+
+def handle_enter():
+    """엔터키 입력 처리"""
+    st.session_state.enter_pressed = True
 
 def show_video_page():
     """비디오 페이지 표시"""
@@ -654,9 +678,9 @@ def show_trending_videos():
 
 def process_video(url):
     try:
-        video_response = get_video_info(url)  # video_response만 받도록 수정
+        video_response = get_video_info(url)
         
-        if video_response and video_response.get('items'):  # 체크 방식 수정
+        if video_response and video_response.get('items'):
             # 스타일 정의
             st.markdown("""
                 <style>
@@ -798,7 +822,7 @@ def process_video(url):
             video_id = url.split('watch?v=')[1].split('&')[0]
             
             # 댓글 분석하여 최고 인기 타임스탬프 찾기
-            comments_df = get_comments(video_id)  # video.video_id 대신 video_id 사용
+            comments_df = get_comments(video_id)
             start_time = 0
             timeline_data = {}
             current_time = st.session_state.get('current_time', 0)
@@ -822,7 +846,7 @@ def process_video(url):
                         <iframe
                             width="100%"
                             height="500"
-                            src="https://www.youtube.com/embed/{video_id}?start={current_time or start_time}&autoplay=1"
+                            src="https://www.youtube.com/embed/${video_id}?start=${current_time or start_time}&autoplay=1"
                             frameborder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen
@@ -835,10 +859,33 @@ def process_video(url):
                 """, unsafe_allow_html=True)
             
             with col2:
-                # 타임라인 모먼트
                 st.markdown('<h2>🎯 인기 타임라인 모먼트</h2>', unsafe_allow_html=True)
                 
                 if timeline_data:
+                    # AI 제목 생성
+                    suggested_titles = generate_short_form_title(timeline_data)
+                    if suggested_titles:
+                        st.markdown("""
+                            <div style="
+                                background: rgba(255, 75, 75, 0.1);
+                                border-radius: 8px;
+                                padding: 1rem;
+                                margin-bottom: 1.5rem;
+                            ">
+                                <h3 style="
+                                    color: #FF4B4B;
+                                    margin-bottom: 0.5rem;
+                                    font-size: 1.2rem;
+                                ">🤖 AI 추천 숏폼 제목</h3>
+                                <div style="
+                                    color: white;
+                                    line-height: 1.6;
+                                    white-space: pre-line;
+                                ">{}</div>
+                            </div>
+                        """.format(suggested_titles), unsafe_allow_html=True)
+                    
+                    # 타임라인 모먼트 표시
                     for time, data in sorted(timeline_data.items(), 
                                           key=lambda x: x[1]['total_likes'], 
                                           reverse=True)[:10]:
