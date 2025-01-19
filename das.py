@@ -846,7 +846,7 @@ def process_video(url):
                         <iframe
                             width="100%"
                             height="500"
-                            src="https://www.youtube.com/embed/${video_id}?start=${current_time or start_time}&autoplay=1"
+                            src="https://www.youtube.com/embed/{video_id}?start={current_time or start_time}&autoplay=1"
                             frameborder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen
