@@ -11,13 +11,17 @@ import traceback
 import ssl
 import certifi
 import os
+from dotenv import load_dotenv
+
+# 환경 변수 로드
+load_dotenv()
 
 # 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # YouTube API 키 설정
-YOUTUBE_API_KEY = "AIzaSyBv7e73O-Z8BZiuT_9eAfFE3G_tTaAxvqg"  # 실제 API 키로 교체
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")  # 환경 변수에서 API 키 가져오기
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
 def parse_duration(duration):
