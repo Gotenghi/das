@@ -367,120 +367,109 @@ def generate_short_form_title(timeline_data):
         logger.error(f"제목 생성 실패: {str(e)}\n{traceback.format_exc()}")
         return None
 
-def set_global_styles():
-    """전역 스타일 설정"""
+def main():
+    # 페이지 상태 관리
+    if 'page' not in st.session_state:
+        st.session_state.page = 'home'
+    
+    # 홈페이지
+    if st.session_state.page == 'home':
+        show_home_page()
+    # 비디오 페이지
+    elif st.session_state.page == 'video':
+        show_video_page()
+
+def show_home_page():
+    """홈페이지 표시"""
+    # 스타일 정의
     st.markdown("""
         <style>
-        /* 글로벌 스타일 */
-        :root {
-            --text-color: #1A1A1A;
-            --bg-color: #FFFFFF;
-            --card-bg: #F7F7F7;
-            --accent-color: #FF4B4B;
-            --secondary-text: #666666;
-        }
-
-        /* 다크 모드 대응 */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --text-color: #FFFFFF;
-                --bg-color: #1A1A1A;
-                --card-bg: #2D2D2D;
-                --secondary-text: #B0B0B0;
-            }
-        }
-
-        /* 기본 텍스트 스타일 */
+        /* 전체 페이지 스타일 오버라이드 */
         .stApp {
-            color: var(--text-color);
-            background-color: var(--bg-color);
+            background: #1A1A1A !important;
+        }
+        
+        /* 사이드바 스타일 오버라이드 */
+        .css-1d391kg {
+            background: #1A1A1A !important;
+        }
+
+        /* 기본 설정 */
+        :root {
+            --bg-primary: #1A1A1A;
+            --bg-secondary: #2D2D2D;
+            --accent: #FF4B4B;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B0B0B0;
+            --gradient-start: var(--accent);
+            --gradient-end: #FF8F8F;
         }
 
         /* 히어로 섹션 */
         .hero-section {
             text-align: center;
             padding: 4rem 0;
-            background: linear-gradient(135deg, rgba(255, 75, 75, 0.1) 0%, rgba(255, 75, 75, 0.05) 100%);
+            background: linear-gradient(180deg, rgba(255,75,75,0.1) 0%, rgba(26,26,26,0) 100%);
             border-radius: 24px;
             margin-bottom: 3rem;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1rem;
         }
 
         .hero-title {
             font-size: 3.5rem;
             font-weight: 800;
-            color: var(--text-color) !important;
-            margin-bottom: 1rem;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
         }
 
         .hero-subtitle {
             font-size: 2rem;
-            color: var(--text-color) !important;
-            margin-bottom: 1rem;
+            color: var(--text-primary);
+            margin: 1rem 0;
+            font-weight: 600;
         }
 
         .hero-description {
             font-size: 1.2rem;
-            color: var(--secondary-text) !important;
             line-height: 1.8;
+            color: var(--text-secondary);
+            margin-top: 1.5rem;
         }
 
-        /* 비디오 플레이어 */
-        .video-player {
-            background: var(--card-bg);
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 2rem;
-        }
-
-        .video-info-box {
-            padding: 1.5rem;
-        }
-
-        .video-title {
-            color: var(--text-color) !important;
-            font-size: 1.2rem;
+        .highlight {
+            color: var(--accent);
             font-weight: 600;
-            margin-bottom: 0.5rem;
         }
 
-        .channel-name {
-            color: var(--secondary-text) !important;
-        }
-
-        /* 타임라인 모먼트 */
-        .moment-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid rgba(var(--text-color), 0.1);
-        }
-
-        /* 댓글 카드 */
-        .comment-card {
-            background: var(--card-bg);
+        /* URL 입력 필드 스타일링 */
+        .stTextInput > div > div {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: none;
+            padding: 0.5rem 1rem;
             border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
         }
 
-        .comment-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
+        .stTextInput > div > div:hover {
+            border: none;
         }
 
-        .comment-author {
-            color: var(--secondary-text) !important;
+        .stTextInput > div > div > input {
+            color: #000000 !important;  /* 텍스트 색상을 검정색으로 변경 */
+            background-color: rgba(255, 255, 255, 0.05) !important;  /* 배경색 유지 */
         }
 
-        .comment-text {
-            color: var(--text-color) !important;
-        }
-
-        /* 버튼 스타일 */
+        /* 버튼 스타일링 수정 */
         .stButton > button {
-            background-color: var(--accent-color);
+            background-color: #FF4B4B;
             color: white;
             border: none;
             padding: 0.5rem 2rem;
@@ -490,166 +479,16 @@ def set_global_styles():
         }
 
         .stButton > button:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
-
-        /* 입력 필드 */
-        .stTextInput > div > div {
-            background-color: var(--card-bg);
-            border: 1px solid rgba(var(--text-color), 0.1);
-        }
-
-        .stTextInput > div > div > input {
-            color: var(--text-color);
-        }
-
-        /* AI 제안 박스 */
-        .ai-suggestion-box {
-            background: linear-gradient(135deg, rgba(255, 75, 75, 0.1) 0%, rgba(255, 75, 75, 0.05) 100%);
-            border: 1px solid rgba(255, 75, 75, 0.2);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .ai-suggestion-title {
-            color: var(--accent-color) !important;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .ai-suggestion-content {
-            color: var(--text-color) !important;
-            line-height: 1.6;
-        }
-
-        /* 하이라이트 */
-        .highlight {
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-
-        /* 레이아웃 최대 너비 조정 */
-        .block-container {
-            max-width: 95% !important;
-            padding-top: 1rem !important;
-            padding-right: 1rem !important;
-            padding-left: 1rem !important;
-        }
-
-        /* 비디오 플레이어 크기 조정 */
-        .video-player iframe {
-            width: 100%;
-            height: 600px;  /* 높이 증가 */
-        }
-
-        /* 타임라인 모먼트 스크롤 */
-        .timeline-moments {
-            max-height: calc(100vh - 100px);
-            overflow-y: auto;
-            padding-right: 1rem;
-        }
-
-        /* 스크롤바 스타일링 */
-        .timeline-moments::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .timeline-moments::-webkit-scrollbar-track {
-            background: var(--card-bg);
-            border-radius: 3px;
-        }
-
-        .timeline-moments::-webkit-scrollbar-thumb {
-            background: var(--accent-color);
-            border-radius: 3px;
-        }
-
-        /* 댓글 카드 간격 조정 */
-        .comment-card {
-            margin-bottom: 0.75rem;
-            padding: 0.75rem;
-        }
-
-        /* 반응형 디자인 개선 */
-        @media (max-width: 1200px) {
-            .video-player iframe {
-                height: 500px;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .video-player iframe {
-                height: 400px;
-            }
+            background-color: #FF2525;  /* 더 진한 빨간색 */
+            border: none;
+            color: white !important;    /* 호버 시 텍스트 색상 강제 지정 */
+            transform: translateY(-2px); /* 살짝 위로 떠오르는 효과 */
+            box-shadow: 0 4px 12px rgba(255, 75, 75, 0.3); /* 그림자 효과 */
         }
         </style>
     """, unsafe_allow_html=True)
-
-def display_ai_suggestions(suggested_titles):
-    """AI 제안 표시"""
-    titles_list = suggested_titles.split("\n")  # 줄 바꿈을 기준으로 분리
-    titles_html = "<br>".join(titles_list)  # HTML 줄 바꿈으로 변환
-
-    st.markdown(f"""
-        <div class="ai-suggestion-box">
-            <h3 class="ai-suggestion-title">🤖 AI 추천 숏폼 제목</h3>
-            <div class="ai-suggestion-content">{titles_html}</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-def display_moment(time, data):
-    """타임라인 모먼트 표시"""
-    col_time, col_stats = st.columns([1, 2])
     
-    with col_time:
-        # 키에 댓글 텍스트의 일부를 추가하여 고유성 보장
-        unique_key = f"time_{time}_{hash(data['comments'][0]['text'][:20])}"
-        if st.button(f"🕒 {seconds_to_timestamp(time)}", 
-                    key=unique_key,
-                    use_container_width=True):
-            st.session_state.current_time = int(time)
-            st.rerun()
-    
-    with col_stats:
-        st.markdown(f"""
-            <div class="stats">
-                <span class="meta-badge">👍 {data['total_likes']}개</span>
-                <span class="meta-badge">💬 {len(data['comments'])}개</span>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    # 댓글 표시
-    for comment in data['comments']:
-        st.markdown(f"""
-            <div class="comment-card">
-                <div class="comment-header">
-                    <span class="comment-author">{comment['authorDisplayName']}</span>
-                    <span class="comment-likes">👍 {comment['likeCount']}</span>
-                </div>
-                <div class="comment-text">{comment['text']}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-def main():
-    # 테마 및 글로벌 스타일 설정
-    set_global_styles()  # 스타일 설정 함수 분리
-    
-    # 페이지 상태 관리
-    if 'page' not in st.session_state:
-        st.session_state.page = 'home'
-    
-    # 페이지 라우팅
-    if st.session_state.page == 'home':
-        show_home_page()
-    else:
-        show_video_page()
-
-def show_home_page():
-    """홈페이지 표시"""
-    # 히어로 섹션
+    # 메인 타이틀과 설명
     st.markdown("""
         <div class="hero-section">
             <div class="hero-content">
@@ -672,13 +511,11 @@ def show_home_page():
         if url:
             st.session_state.video_url = url
             st.session_state.page = 'video'
+            # 엔터 상태 초기화
             st.session_state.enter_pressed = False
             st.rerun()
         else:
             st.error("URL을 입력해주세요")
-    
-    # 트렌딩 비디오 표시 (한 번만 호출)
-    show_trending_videos()
 
 def handle_enter():
     """엔터키 입력 처리"""
@@ -691,92 +528,9 @@ def show_video_page():
         st.session_state.page = 'home'
         st.rerun()
     
-    # 비디오 처리
+    # 비디오 콘텐츠
     if hasattr(st.session_state, 'video_url'):
         process_video(st.session_state.video_url)
-
-def process_video(url):
-    """비디오 처리 및 표시"""
-    try:
-        video_response = get_video_info(url)
-        
-        if not video_response or not video_response.get('items'):
-            st.error("영상 정보를 가져올 수 없습니다.")
-            return
-
-        # 비디오 ID 추출
-        video_id = url.split('watch?v=')[1].split('&')[0]
-        
-        # 댓글 분석
-        comments_df = get_comments(video_id)
-        start_time = 0
-        timeline_data = {}
-        current_time = st.session_state.get('current_time', 0)
-        
-        if not comments_df.empty:
-            comments_df['timestamp'] = comments_df['text'].apply(parse_timestamp)
-            timeline_data = aggregate_timeline_comments(comments_df)
-            
-            if timeline_data:
-                most_liked_moment = max(timeline_data.items(), 
-                                     key=lambda x: x[1]['total_likes'])
-                start_time = most_liked_moment[0]
-        
-        # 레이아웃 비율 조정 (5:5로 변경)
-        col1, col2 = st.columns([5, 5])
-        
-        with col1:
-            display_video_player(video_id, video_response, current_time or start_time)
-        
-        with col2:
-            display_timeline_moments(timeline_data, url)
-                            
-    except Exception as e:
-        st.error(f"오류가 발생했습니다: {str(e)}")
-        logger.error(f"비디오 처리 중 오류 발생: {str(e)}\n{traceback.format_exc()}")
-
-def display_video_player(video_id, video_response, start_time):
-    """비디오 플레이어 표시"""
-    st.markdown(f"""
-        <div class="video-player">
-            <iframe
-                width="100%"
-                height="500"
-                src="https://www.youtube.com/embed/{video_id}?start={start_time}&autoplay=1"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen
-            ></iframe>
-            <div class="video-info-box">
-                <h1 class="video-title">{video_response['items'][0]['snippet']['title']}</h1>
-                <span class="channel-name">{video_response['items'][0]['snippet']['channelTitle']}</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-def display_timeline_moments(timeline_data, url):
-    """타임라인 모먼트 표시"""
-    st.markdown("""
-        <div class="timeline-moments">
-            <h2>🎯 인기 타임라인 모먼트</h2>
-    """, unsafe_allow_html=True)
-    
-    if not timeline_data:
-        st.info("타임스탬프가 포함된 댓글이 없습니다.")
-        return
-        
-    # AI 제목 생성
-    suggested_titles = generate_short_form_title(timeline_data)
-    if suggested_titles:
-        display_ai_suggestions(suggested_titles)
-    
-    # 타임라인 모먼트 표시
-    for time, data in sorted(timeline_data.items(), 
-                          key=lambda x: x[1]['total_likes'], 
-                          reverse=True)[:10]:
-        display_moment(time, data)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
 
 def show_trending_videos():
     trending_videos = get_trending_videos()
@@ -946,5 +700,404 @@ def show_trending_videos():
                     </a>
                 """, unsafe_allow_html=True)
 
+def process_video(url):
+    try:
+        video_response = get_video_info(url)
+        
+        if video_response and video_response.get('items'):
+            # 스타일 정의
+            st.markdown("""
+                <style>
+                /* 전체 페이지 스타일 오버라이드 */
+                .stApp {
+                    background: #1A1A1A !important;
+                }
+                
+                /* 사이드바 스타일 오버라이드 */
+                .css-1d391kg {
+                    background: #1A1A1A !important;
+                }
+                
+                .block-container {
+                    max-width: 1600px !important;
+                    padding: 2rem !important;
+                }
+                
+                .video-player {
+                    margin-bottom: 1rem;
+                }
+                
+                .video-info-box {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 16px;
+                    padding: 1.5rem;
+                    margin-top: 1rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .video-title {
+                    font-size: 1.5rem;
+                    color: white;
+                    margin-bottom: 1rem;
+                }
+                
+                .channel-name {
+                    color: #B0B0B0;
+                }
+                
+                .moment-card {
+                    background: rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .moment-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .timestamp-badge {
+                    background: #FF4B4B;
+                    color: white !important;
+                    padding: 0.5rem 1rem;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    border: none;
+                    transition: all 0.2s ease;
+                }
+                
+                .timestamp-badge:hover {
+                    background: #FF3333;
+                    transform: translateY(-2px);
+                }
+                
+                .stats {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                
+                .stats span {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0.4rem 0.8rem;
+                    border-radius: 20px;
+                    font-size: 0.9rem;
+                    color: #B0B0B0;
+                }
+                
+                .comment-card {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 0.5rem;
+                }
+                
+                .comment-header {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 0.5rem;
+                }
+                
+                .comment-author {
+                    color: #B0B0B0;
+                }
+                
+                .comment-text {
+                    color: white;
+                    line-height: 1.5;
+                }
+                
+                /* Streamlit 기본 헤더 숨기기 */
+                header {
+                    visibility: hidden;
+                }
+                
+                /* 스크롤바 스타일링 */
+                ::-webkit-scrollbar {
+                    width: 8px;
+                }
+                
+                ::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.05);
+                }
+                
+                ::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 4px;
+                }
+                
+                /* 타임라인 모먼트 섹션 스타일 */
+                h2 {
+                    color: white;
+                    margin-bottom: 1.5rem;
+                    font-size: 1.5rem;
+                }
+                
+                /* 비디오 정보 박스 스타일 */
+                .video-info-box {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 16px;
+                    padding: 1.5rem;
+                    margin-top: 1rem;
+                }
+                
+                /* 메타 데이터 스타일 */
+                .meta-data {
+                    display: flex;
+                    justify-content: space-between;
+                    color: rgba(255, 255, 255, 0.7);
+                    font-size: 0.9rem;
+                    margin-top: 0.5rem;
+                }
+                
+                .meta-badge {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 0.4rem 0.8rem;
+                    border-radius: 20px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            # JavaScript 함수를 components.html로 추가
+            st.components.v1.html("""
+                <script>
+                window.addEventListener('message', function(e) {
+                    if (e.data.type === 'jumpToTime') {
+                        const iframe = document.querySelector('iframe');
+                        if (iframe) {
+                            const newSrc = `https://www.youtube.com/embed/${e.data.videoId}?start=${e.data.time}&autoplay=1`;
+                            iframe.src = newSrc;
+                        }
+                    }
+                }, false);
+                </script>
+            """, height=0)
+            
+            # 비디오 ID 추출
+            video_id = url.split('watch?v=')[1].split('&')[0]
+            
+            # 댓글 분석하여 최고 인기 타임스탬프 찾기
+            comments_df = get_comments(video_id)
+            start_time = 0
+            timeline_data = {}
+            current_time = st.session_state.get('current_time', 0)
+            
+            if not comments_df.empty:
+                comments_df['timestamp'] = comments_df['text'].apply(parse_timestamp)
+                timeline_data = aggregate_timeline_comments(comments_df)
+                
+                if timeline_data:
+                    most_liked_moment = max(timeline_data.items(), 
+                                         key=lambda x: x[1]['total_likes'])
+                    start_time = most_liked_moment[0]
+            
+            # 레이아웃 설정
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                # 비디오 플레이어
+                st.markdown(f"""
+                    <div class="video-player">
+                        <iframe
+                            width="100%"
+                            height="500"
+                            src="https://www.youtube.com/embed/{video_id}?start={current_time or start_time}&autoplay=1"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                        ></iframe>
+                        <div class="video-info-box">
+                            <h1 class="video-title">{video_response['items'][0]['snippet']['title']}</h1>
+                            <span class="channel-name">{video_response['items'][0]['snippet']['channelTitle']}</span>
+                            <div class="meta-data">
+                                <span class="meta-badge">👀 {format_number(int(video_response['items'][0]['statistics']['viewCount']))} 조회수</span>
+                                <span class="meta-badge">💬 {format_number(int(video_response['items'][0]['statistics']['commentCount']))} 댓글</span>
+                                <span class="meta-badge">👍 {format_number(int(video_response['items'][0]['statistics'].get('likeCount', 0)))} 좋아요</span>
+                            </div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown('<h2>🎯 인기 타임라인 모먼트</h2>', unsafe_allow_html=True)
+                
+                if timeline_data:
+                    # AI 제목 생성
+                    suggested_titles = generate_short_form_title(timeline_data)
+                    if suggested_titles:
+                        st.markdown("""
+                            <div style="
+                                background: rgba(255, 75, 75, 0.1);
+                                border-radius: 8px;
+                                padding: 1rem;
+                                margin-bottom: 1.5rem;
+                            ">
+                                <h3 style="
+                                    color: #FF4B4B;
+                                    margin-bottom: 0.5rem;
+                                    font-size: 1.2rem;
+                                ">🤖 AI 추천 숏폼 제목</h3>
+                                <div style="
+                                    color: white;
+                                    line-height: 1.6;
+                                    white-space: pre-line;
+                                ">{}</div>
+                            </div>
+                        """.format(suggested_titles), unsafe_allow_html=True)
+                    
+                    # 타임라인 모먼트 표시
+                    for time, data in sorted(timeline_data.items(), 
+                                          key=lambda x: x[1]['total_likes'], 
+                                          reverse=True)[:10]:
+                        col_time, col_stats = st.columns([1, 2])
+                        
+                        with col_time:
+                            if st.button(f"🕒 {seconds_to_timestamp(time)}", 
+                                       key=f"time_{time}",
+                                       use_container_width=True):
+                                st.session_state.current_time = int(time)
+                                st.rerun()
+                        
+                        with col_stats:
+                            st.markdown(f"""
+                                <div class="stats">
+                                    <span>👍 {data['total_likes']}개</span>
+                                    <span>💬 {len(data['comments'])}개</span>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                        # 댓글 표시
+                        for comment in data['comments']:
+                            st.markdown(f"""
+                                <div class="comment-card">
+                                    <div class="comment-header">
+                                        <span class="comment-author">{comment['authorDisplayName']}</span>
+                                        <span class="comment-likes">👍 {comment['likeCount']}</span>
+                                    </div>
+                                    <div class="comment-text">{comment['text']}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
+                else:
+                    st.info("타임스탬프가 포함된 댓글이 없습니다.")
+                                
+    except Exception as e:
+        st.error(f"오류가 발생했습니다: {str(e)}")
+        logger.error(f"비디오 처리 중 오류 발생: {str(e)}\n{traceback.format_exc()}")
+
 if __name__ == "__main__":
     main()
+
+# 기존 스타일에 다음 CSS를 추가/수정
+
+st.markdown("""
+    <style>
+    /* 전체 텍스트 색상 오버라이드 */
+    .stMarkdown, .stMarkdown p, h1, h2, h3, h4, h5, h6, .stTextInput label, .stSelectbox label {
+        color: #FFFFFF !important;
+    }
+    
+    /* URL 입력 필드 레이블 */
+    .stTextInput > label {
+        color: #FFFFFF !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+    
+    /* 입력 필드 스타일링 */
+    .stTextInput > div > div {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        color: #FFFFFF !important;
+    }
+    
+    .stTextInput > div > div:hover {
+        border-color: rgba(255, 75, 75, 0.5) !important;
+    }
+    
+    .stTextInput > div > div:focus-within {
+        border-color: #FF4B4B !important;
+    }
+    
+    /* 타임코드 하이퍼링크 박스 */
+    .timestamp-badge {
+        background: rgba(255, 75, 75, 0.1) !important;
+        color: #FF4B4B !important;
+        border: 1px solid rgba(255, 75, 75, 0.2) !important;
+    }
+    
+    .timestamp-badge:hover {
+        background: rgba(255, 75, 75, 0.2) !important;
+        border-color: rgba(255, 75, 75, 0.3) !important;
+    }
+    
+    /* 홈으로 버튼 */
+    .stButton > button[kind="secondary"] {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* 섹션 헤더 (인기 타임라인 모먼트 등) */
+    .section-header h2 {
+        color: #FFFFFF !important;
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 1.5rem !important;
+    }
+    
+    /* 에러 메시지 */
+    .stAlert {
+        background-color: rgba(255, 75, 75, 0.1) !important;
+        color: #FF4B4B !important;
+    }
+    
+    /* 비디오 제목 */
+    .video-title {
+        color: #FFFFFF !important;
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* 채널명 */
+    .channel-name {
+        color: rgba(255, 255, 255, 0.7) !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* 로딩 스피너 */
+    .stSpinner > div {
+        border-color: #FF4B4B !important;
+    }
+    
+    /* 스크롤바 */
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    <style>
+    /* Deploy 바 숨기기 */
+    .stApp > header {
+        display: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
